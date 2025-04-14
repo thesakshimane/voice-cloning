@@ -1,2 +1,10 @@
 mlflow
 dvc
+torch
+torchaudio
+sounddevice
+numpy
+scipy
+pydub
+speechbrain
+librosa
