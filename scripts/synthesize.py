@@ -1,36 +1,39 @@
-# scripts/synthesize.py
 import os
 import numpy as np
+import torch
 from TTS.api import TTS
+from scipy.io.wavfile import write
+from pathlib import Path
 import soundfile as sf
 
-def synthesize_speech(text, user_id="user_1", model_name="tts_models/multilingual/multi-dataset/your_tts"):
-    # Set the base directory to the project root
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    embedding_dir = os.path.join(base_dir, "data", "embeddings", user_id)
+# Configuration
+USER_ID = "user_1"
+EMBEDDING_DIR = "data/embeddings"
+OUTPUT_DIR = "outputs"
+MODEL_NAME = "tts_models/en/vctk/vits"
 
-    # Load the latest embedding
-    embedding_files = sorted(os.listdir(embedding_dir))
-    if not embedding_files:
-        print(f"❌ No embeddings found for user '{user_id}'")
-        return
-    
-    latest_embedding_file = os.path.join(embedding_dir, embedding_files[-1])
-    speaker_embedding = np.load(latest_embedding_file)
+# Ensure output directory exists
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Initialize the TTS model
-    tts = TTS(model_name)
-    
-    # Generate the speech
-    print(f"🗣️ Synthesizing: '{text}'")
-    output_wav = tts.tts(text, speaker_wav=None, speaker_embedding=speaker_embedding)
-    
-    # Save the output
-    output_file = os.path.join(base_dir, "data", f"{user_id}_synthesized.wav")
-    sf.write(output_file, output_wav, 22050)
-    
-    print(f"✅ Saved synthesized speech as {output_file}")
+# Load the precomputed speaker embedding
+embedding_file = os.path.join(EMBEDDING_DIR, f"{USER_ID}_embedding.npy")
+if not os.path.exists(embedding_file):
+    raise FileNotFoundError(f"Embedding file not found: {embedding_file}")
 
-# Test the function
-if __name__ == "__main__":
-    synthesize_speech("Hello, this is a test of my new voice cloning project!", user_id="user_1")
+speaker_embedding = np.load(embedding_file)
+print(f"🔍 Loaded speaker embedding: {speaker_embedding.shape}")
+
+# Load TTS model
+print(f"🎙️  Initializing TTS model: {MODEL_NAME}")
+tts = TTS(MODEL_NAME)
+print("✅  TTS model initialized.")
+
+# Generate speech
+text = "Hello! I am your AI voice."
+print(f"📝 Synthesizing text: {text}")
+audio = tts.tts(text, speaker_wav=None, speaker_embeddings=torch.tensor(speaker_embedding))
+
+# Save the synthesized audio
+output_file = os.path.join(OUTPUT_DIR, f"{USER_ID}_synthesized.wav")
+sf.write(output_file, audio, 22050)
+print(f"✅  Synthesis complete. Output saved at: {output_file}")

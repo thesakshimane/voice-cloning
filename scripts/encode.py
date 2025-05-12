@@ -1,37 +1,46 @@
-# scripts/encode.py
-from resemblyzer import VoiceEncoder, preprocess_wav
-import numpy as np
 import os
+import numpy as np
 import soundfile as sf
+from resemblyzer import VoiceEncoder
+import warnings
 
-def generate_embedding(audio_file, user_id="default_user", model=None):
-    # Set the base directory to the project root
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    output_dir = os.path.join(base_dir, "data", "embeddings", user_id)
-    os.makedirs(output_dir, exist_ok=True)
+# Suppress warnings for cleaner output
+warnings.filterwarnings("ignore")
 
-    # Load and preprocess the audio file
-    wav = preprocess_wav(audio_file)
-    model = model or VoiceEncoder()
-    
-    # Generate the embedding
-    embedding = model.embed_utterance(wav)
-    
-    # Save the embedding as a .npy file
-    embedding_file = os.path.join(output_dir, os.path.splitext(os.path.basename(audio_file))[0] + ".npy")
-    np.save(embedding_file, embedding)
+# Set the paths
+USER_ID = "user_1"  # Replace this with the actual user ID as required
+DATA_DIR = os.path.join("data", "raw", USER_ID)
+OUTPUT_DIR = os.path.join("data", "embeddings", USER_ID)  # Embeddings now saved in data/embeddings/user_id
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    print(f"✅ Saved embedding as {embedding_file}")
-    return embedding
+# Get all recordings
+recordings = sorted([f for f in os.listdir(DATA_DIR) if f.endswith(".wav")])
+if not recordings:
+    print(f"❌ No recordings found for {USER_ID} in {DATA_DIR}. Make sure you have recorded at least one sample.")
+    exit(1)
 
-if __name__ == "__main__":
-    # Use the latest recorded file
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    audio_dir = os.path.join(base_dir, "data", "raw", "user_1")
-    latest_file = sorted(os.listdir(audio_dir))[-1]
-    audio_path = os.path.join(audio_dir, latest_file)
-    
-    print(f"Generating embedding for: {audio_path}")
-    embedding = generate_embedding(audio_path, user_id="user_1")
-    print(f"🔊 Embedding Shape: {embedding.shape}")
-    print(f"🔍 Embedding Sample: {embedding[:5]}")
+# Initialize Resemblyzer encoder
+encoder = VoiceEncoder()
+print("✅  Encoder initialized.")
+
+# Loop through all recordings and generate embeddings for each
+for recording in recordings:
+    wav_file_path = os.path.join(DATA_DIR, recording)
+    print(f"🗣️  Using voice sample: {wav_file_path}")
+
+    # Load the audio file
+    wav, sr = sf.read(wav_file_path)
+
+    # Generate speaker embedding
+    print(f"🔄 Generating embeddings for {USER_ID}...")
+    embedding = encoder.embed_utterance(wav)
+    print(f"🔍 Embedding Shape: {embedding.shape}")
+
+    # Check if the embedding is 256-dimensional
+    if embedding.shape[0] == 256:
+        # Save the embeddings as a .npy file (one file per .wav)
+        embedding_file = os.path.join(OUTPUT_DIR, f"{USER_ID}_{recording.replace('.wav', '_embedding.npy')}")
+        np.save(embedding_file, embedding)
+        print(f"✅  Embeddings saved to {embedding_file}")
+    else:
+        print(f"⚠️  Warning: Expected embedding size of 256, but got {embedding.shape[0]}. Check your model settings.")

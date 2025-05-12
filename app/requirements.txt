@@ -1,5 +1,11 @@
 mlflow
 dvc
-
-
-
+pyaudio
+wave
+datetime
+resemblyzer
+TTS
+soundfile
+numpy
+librosa
+wavio
